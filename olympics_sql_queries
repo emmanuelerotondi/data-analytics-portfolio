@@ -1,0 +1,71 @@
+--Dataset: 120 years of Olympic history: athletes and results
+--Source: Kaggle https://www.kaggle.com/datasets/heesoo37/120-years-of-olympic-history-athletes-and-results
+--Queried using: PostgreSQL
+
+--SQL Tables: athlete_events
+id - int
+name - str
+sex - str
+age - int
+height - int
+weight - dec
+team - str
+noc - str
+games - str
+year - date
+season - str
+city - str
+sport - str
+event - str
+medal - str
+
+
+-- What was the average age of the athletes who won a gold medal in the summer games? 
+SELECT ROUND(AVG(Age), 2) AS average_age_of_gold_medalists
+FROM
+    (SELECT ID, Name, Age
+        FROM athlete_events
+        WHERE Medal = 'Gold' AND Season = 'Summer') GoldMedlists;
+        
+
+
+--List of athletes that have participated in the same events
+SELECT a1.ID AS athlete1_id, a1.Name AS athlete1_name, a2.ID AS athlete2_id, a2.Name AS athlete2_name, a1.Event
+FROM athlete_events AS a1
+INNER JOIN athlete_events AS a2 ON a1.Event = a2.Event
+WHERE a1.ID < a2.ID; -- Ensures that we don't match an athlete with themselves
+
+
+    
+--Which sport was played in all summer olympics?
+WITH t1 AS (
+    SELECT COUNT(DISTINCT games) AS total_summer_games 
+    FROM athlete_events
+    WHERE season = 'Summer' 
+), -- This CTE calculates the total number of unique summer games
+t2 AS (
+    SELECT sport, COUNT(DISTINCT games) AS no_of_games
+    FROM athlete_events
+    WHERE season = 'Summer'
+    GROUP BY sport
+) -- This CTE calculates the unique number of games and then groups it by sport
+
+-- Then filter the results to only include sports where the count of games matches the total number of distinct summer games
+SELECT *
+FROM t2
+JOIN t1 ON t1.total_summer_games = t2.no_of_games; 
+
+
+
+-- Who are the top athletes with the highest number of gold medals won?
+WITH MedalCounts AS (
+    SELECT name, team AS country COUNT(name) AS total_medals -- CTE to find total count of athletes filtered by gold medals only 
+    FROM athlete_events
+    WHERE medal = 'Gold'
+    GROUP BY name, country
+) 
+
+SELECT name, country, total_medals, DENSE_RANK() OVER (ORDER BY total_medals DESC) AS rank
+FROM MedalCounts
+ORDER BY total_medals DESC;
+
